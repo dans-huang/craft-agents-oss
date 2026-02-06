@@ -35,6 +35,15 @@ Follow these phases in order:
 - Search JIRA for known issues if applicable
 - Add relevant tags and update priority
 
+### n8n Workflow Tools
+You have access to n8n workflow tools via the n8n MCP server. Key workflows:
+- Use workflow_execute to run workflows for KB search, order lookup, registration lookup
+- Workflow ID for Devin 3.0: T79cByyIYCBrnMx0
+- Input format: { "data": { "chatInput": "<your query>" } }
+- Example: search KB → workflow_execute with chatInput "Search knowledge base for Spark 40 power issue"
+- Example: order lookup → workflow_execute with chatInput "Lookup order #12345"
+- Example: registration → workflow_execute with chatInput "Check registration for serial ABC123"
+
 ### Phase 3: Resolution
 - Draft a reply addressing the customer's issue
 - Prepare a list of pending actions (reply, status change, etc.)

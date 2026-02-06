@@ -127,6 +127,12 @@ export interface CraftAgentConfig {
   systemPromptPreset?: 'default' | 'mini' | 'zendesk' | string;
   /** Zendesk ticket context for zendesk preset sessions */
   zendeskContext?: TicketContext;
+  /** Zendesk API credentials for auto-execute tools (tags, notes) */
+  zendeskCredentials?: import('../zendesk/types.ts').ZendeskCredentials;
+  /** JIRA API credentials for search_jira tool */
+  jiraCredentials?: { baseUrl: string; email: string; apiToken: string };
+  /** n8n API key for n8n MCP server (KB search, order/registration lookup) */
+  n8nApiKey?: string;
 }
 
 // Permission request tracking
@@ -843,8 +849,25 @@ export class CraftAgent {
             // Zendesk agents: session tools + zendesk tools MCP server
             session: getSessionScopedTools(sessionId, this.workspaceRootPath),
             ...(this.config.zendeskContext
-              ? { 'zendesk-tools': getZendeskToolsServer(sessionId, this.config.zendeskContext.ticketId) }
+              ? { 'zendesk-tools': getZendeskToolsServer(
+                  sessionId,
+                  this.config.zendeskContext.ticketId,
+                  this.config.zendeskCredentials,
+                  this.config.jiraCredentials,
+                ) }
               : {}),
+            // n8n MCP server: provides KB search, order lookup, registration lookup via workflows
+            ...(this.config.n8nApiKey ? {
+              'n8n': {
+                type: 'stdio' as const,
+                command: 'npx',
+                args: ['-y', 'n8n-mcp'],
+                env: {
+                  N8N_API_KEY: this.config.n8nApiKey,
+                  N8N_BASE_URL: 'https://n8n-support.pg-internal.homes',
+                },
+              },
+            } : {}),
           }
         : {
             preferences: getPreferencesServer(false),

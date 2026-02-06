@@ -401,6 +401,12 @@ export interface CreateSessionOptions {
   zendeskTicketId?: number
   /** Zendesk ticket context (for building the system prompt) */
   zendeskTicketContext?: import('@craft-agent/shared/zendesk').TicketContext
+  /** Zendesk API credentials for auto-execute tools */
+  zendeskCredentials?: import('@craft-agent/shared/zendesk').ZendeskCredentials
+  /** JIRA API credentials for search_jira tool */
+  jiraCredentials?: { baseUrl: string; email: string; apiToken: string }
+  /** n8n API key for n8n MCP server */
+  n8nApiKey?: string
 }
 
 // Events sent from main to renderer
@@ -762,6 +768,10 @@ export const IPC_CHANNELS = {
   ZENDESK_CONFIRM_ACTION: 'zendesk:confirm-action',
   ZENDESK_CANCEL_ACTION: 'zendesk:cancel-action',
   ZENDESK_PENDING_ACTION: 'zendesk:pending-action',  // main → renderer broadcast
+  ZENDESK_GET_JIRA_CREDENTIALS: 'zendesk:get-jira-credentials',
+  ZENDESK_SAVE_JIRA_CREDENTIALS: 'zendesk:save-jira-credentials',
+  ZENDESK_GET_N8N_API_KEY: 'zendesk:get-n8n-api-key',
+  ZENDESK_SAVE_N8N_API_KEY: 'zendesk:save-n8n-api-key',
 
   // Menu actions (renderer → main for window/app control)
   MENU_QUIT: 'menu:quit',

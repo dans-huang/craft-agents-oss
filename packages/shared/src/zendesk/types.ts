@@ -55,6 +55,24 @@ export interface ZendeskCommentsResponse {
   next_page: string | null;
 }
 
+export interface JiraCredentials {
+  baseUrl: string;
+  email: string;
+  apiToken: string;
+}
+
+export interface JiraIssue {
+  key: string;
+  summary: string;
+  status: string;
+  priority: string | null;
+  assignee: string | null;
+  created: string;
+  updated: string;
+  issueType: string;
+  url: string;
+}
+
 export type TicketUpdatePayload = {
   ticket: {
     status?: ZendeskTicket['status'];

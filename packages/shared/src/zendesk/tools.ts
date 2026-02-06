@@ -5,12 +5,12 @@
  * Divided into two categories:
  *
  * **Auto-execute tools** — The AI can call these freely without agent confirmation:
- * - search_knowledge_base: Search KB articles related to the customer issue
- * - lookup_order: Look up order by number or email
- * - lookup_registration: Check product registration status
  * - search_jira: Search JIRA for known issues/bugs
  * - add_ticket_tags: Add tags to the current ticket
  * - add_internal_note: Add an internal note (not visible to customer)
+ *
+ * **n8n workflow tools** (provided via n8n MCP server, not defined here):
+ * - KB search, order lookup, registration lookup are accessed via workflow_execute
  *
  * **Needs-confirmation tools** — AI prepares, human agent confirms:
  * - draft_reply: Prepare a draft reply for agent review (does NOT send)
@@ -24,125 +24,6 @@ import { z } from 'zod';
 // ============================================================
 // Auto-Execute Tools
 // ============================================================
-
-/**
- * Search the knowledge base for articles related to the customer issue.
- */
-const searchKnowledgeBase = tool(
-  'search_knowledge_base',
-  `Search the knowledge base for articles related to the customer issue.
-
-Use this to find relevant help articles, troubleshooting guides, and documentation
-that can help resolve the customer's problem.
-
-**Search types:**
-- \`semantic\`: Natural language search — best for understanding intent (e.g., "amp won't turn on")
-- \`keyword\`: Exact keyword matching — best for specific terms (e.g., "BIAS FX 2 activation code")
-
-Returns matching articles with titles, excerpts, and relevance scores.`,
-  {
-    query: z.string().describe('Search query describing the customer issue or topic'),
-    type: z.enum(['semantic', 'keyword']).describe('Search type: semantic for natural language, keyword for exact matching'),
-  },
-  async (args) => {
-    // TODO: Implement KB search integration
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({
-          query: args.query,
-          type: args.type,
-          results: [],
-          message: 'Knowledge base search not yet connected',
-        }, null, 2),
-      }],
-    };
-  }
-);
-
-/**
- * Look up an order by order number or customer email.
- */
-const lookupOrder = tool(
-  'lookup_order',
-  `Look up an order by order number or customer email.
-
-Use this to find order details including purchase date, items ordered,
-shipping status, and payment information. Provide at least one of
-orderNumber or customerEmail.
-
-**Returns:** Order details including status, items, and tracking info.`,
-  {
-    orderNumber: z.string().optional().describe('Order number to look up'),
-    customerEmail: z.string().optional().describe('Customer email to search orders for'),
-  },
-  async (args) => {
-    if (!args.orderNumber && !args.customerEmail) {
-      return {
-        content: [{
-          type: 'text' as const,
-          text: 'Error: Provide at least one of orderNumber or customerEmail.',
-        }],
-        isError: true,
-      };
-    }
-
-    // TODO: Implement order lookup integration
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({
-          orderNumber: args.orderNumber,
-          customerEmail: args.customerEmail,
-          results: [],
-          message: 'Order lookup not yet connected',
-        }, null, 2),
-      }],
-    };
-  }
-);
-
-/**
- * Check product registration status.
- */
-const lookupRegistration = tool(
-  'lookup_registration',
-  `Check product registration status by serial number or customer email.
-
-Use this to verify whether a product has been registered, check warranty
-status, and find registration details. Provide at least one of
-serialNumber or customerEmail.
-
-**Returns:** Registration details including product, registration date, and warranty status.`,
-  {
-    serialNumber: z.string().optional().describe('Product serial number to look up'),
-    customerEmail: z.string().optional().describe('Customer email to search registrations for'),
-  },
-  async (args) => {
-    if (!args.serialNumber && !args.customerEmail) {
-      return {
-        content: [{
-          type: 'text' as const,
-          text: 'Error: Provide at least one of serialNumber or customerEmail.',
-        }],
-        isError: true,
-      };
-    }
-
-    // TODO: Implement registration lookup integration
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({
-          serialNumber: args.serialNumber,
-          customerEmail: args.customerEmail,
-          results: [],
-          message: 'Registration lookup not yet connected',
-        }, null, 2),
-      }],
-    };
-  }
-);
 
 /**
  * Search JIRA for known issues or bugs.
@@ -160,7 +41,7 @@ reported before, or is being tracked as a feature request.
     project: z.string().optional().describe('JIRA project key to search within (e.g., "STFS")'),
   },
   async (args) => {
-    // TODO: Implement JIRA search integration
+    // Implementation is in zendesk-tools-server.ts (wired to JiraClient)
     return {
       content: [{
         type: 'text' as const,
@@ -202,7 +83,7 @@ workflow tags. Tags are additive — existing tags are preserved.
       };
     }
 
-    // TODO: Implement Zendesk tag update via ZendeskClient
+    // Implementation is in zendesk-tools-server.ts (wired to ZendeskClient)
     return {
       content: [{
         type: 'text' as const,
@@ -243,7 +124,7 @@ Internal notes are **not visible to the customer**. Use this to:
       };
     }
 
-    // TODO: Implement internal note via ZendeskClient (comment with public: false)
+    // Implementation is in zendesk-tools-server.ts (wired to ZendeskClient)
     return {
       content: [{
         type: 'text' as const,
@@ -295,8 +176,6 @@ when the reply is sent (e.g., "pending" after asking for more info).`,
       };
     }
 
-    // This tool prepares a draft for the Pending Actions queue.
-    // The actual sending happens when the agent confirms via the UI.
     return {
       content: [{
         type: 'text' as const,
@@ -393,11 +272,9 @@ Use this when:
 /**
  * Auto-execute tools — AI can run these freely without agent confirmation.
  * These tools perform read operations or low-risk writes (tags, internal notes).
+ * Note: KB search, order lookup, and registration lookup are now provided via n8n MCP server.
  */
 export const ZENDESK_AUTO_TOOLS = [
-  searchKnowledgeBase,
-  lookupOrder,
-  lookupRegistration,
   searchJira,
   addTicketTags,
   addInternalNote,

@@ -5,7 +5,8 @@
  * Follows the same pattern as `getSessionScopedTools()` in session-scoped-tools.ts.
  *
  * Two categories:
- * - **Auto-execute tools**: AI can call freely (search KB, lookup order, add tags, internal note)
+ * - **Auto-execute tools**: AI can call freely (search JIRA, add tags, internal note)
+ *   KB search, order & registration lookup are provided via n8n MCP server.
  * - **Confirmation tools**: Return structured JSON for the PendingActions flow
  *   (draft_reply, request_status_change, request_escalation)
  */
@@ -13,117 +14,26 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { debug } from '../utils/debug.ts';
+import type { ZendeskCredentials, JiraCredentials } from '../zendesk/types.ts';
+import { ZendeskClient } from '../zendesk/client.ts';
+import { JiraClient } from '../zendesk/jira-client.ts';
 
 // Cache to reuse server instances per session
 const zendeskToolsCache = new Map<string, ReturnType<typeof createSdkMcpServer>>();
 
 /**
  * Create all zendesk tools for a session, bound to a specific ticket.
- * Tools don't depend on ZendeskClient directly — auto-execute tools are stubs
- * for now, and confirmation tools return structured JSON for the main process
+ * Auto-execute tools call ZendeskClient/JiraClient directly.
+ * Confirmation tools return structured JSON for the main process
  * to intercept and present as PendingActions.
  */
-function createZendeskTools(ticketId: number) {
+function createZendeskTools(ticketId: number, zendeskCreds?: ZendeskCredentials, jiraCreds?: { baseUrl: string; email: string; apiToken: string }) {
   // ============================================================
   // Auto-Execute Tools
   // ============================================================
 
-  const searchKnowledgeBase = tool(
-    'search_knowledge_base',
-    `Search the knowledge base for articles related to the customer issue.
-
-Use this to find relevant help articles, troubleshooting guides, and documentation
-that can help resolve the customer's problem.
-
-**Search types:**
-- \`semantic\`: Natural language search — best for understanding intent (e.g., "amp won't turn on")
-- \`keyword\`: Exact keyword matching — best for specific terms (e.g., "BIAS FX 2 activation code")
-
-Returns matching articles with titles, excerpts, and relevance scores.`,
-    {
-      query: z.string().describe('Search query describing the customer issue or topic'),
-      type: z.enum(['semantic', 'keyword']).describe('Search type: semantic for natural language, keyword for exact matching'),
-    },
-    async (args) => {
-      // TODO: Wire to real KB search
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            query: args.query,
-            type: args.type,
-            results: [],
-            message: 'Knowledge base search not yet connected',
-          }, null, 2),
-        }],
-      };
-    }
-  );
-
-  const lookupOrder = tool(
-    'lookup_order',
-    `Look up an order by order number or customer email.
-
-Use this to find order details including purchase date, items ordered,
-shipping status, and payment information.
-
-**Returns:** Order details including status, items, and tracking info.`,
-    {
-      orderNumber: z.string().optional().describe('Order number to look up'),
-      customerEmail: z.string().optional().describe('Customer email to search orders for'),
-    },
-    async (args) => {
-      if (!args.orderNumber && !args.customerEmail) {
-        return {
-          content: [{ type: 'text' as const, text: 'Error: Provide at least one of orderNumber or customerEmail.' }],
-          isError: true,
-        };
-      }
-      // TODO: Wire to real order lookup
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            orderNumber: args.orderNumber,
-            customerEmail: args.customerEmail,
-            results: [],
-            message: 'Order lookup not yet connected',
-          }, null, 2),
-        }],
-      };
-    }
-  );
-
-  const lookupRegistration = tool(
-    'lookup_registration',
-    `Check product registration status by serial number or customer email.
-
-**Returns:** Registration details including product, registration date, and warranty status.`,
-    {
-      serialNumber: z.string().optional().describe('Product serial number to look up'),
-      customerEmail: z.string().optional().describe('Customer email to search registrations for'),
-    },
-    async (args) => {
-      if (!args.serialNumber && !args.customerEmail) {
-        return {
-          content: [{ type: 'text' as const, text: 'Error: Provide at least one of serialNumber or customerEmail.' }],
-          isError: true,
-        };
-      }
-      // TODO: Wire to real registration lookup
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            serialNumber: args.serialNumber,
-            customerEmail: args.customerEmail,
-            results: [],
-            message: 'Registration lookup not yet connected',
-          }, null, 2),
-        }],
-      };
-    }
-  );
+  // NOTE: KB search, order lookup, and registration lookup are now provided by
+  // the n8n MCP server (workflow_execute). Stubs removed in Phase 3.
 
   const searchJira = tool(
     'search_jira',
@@ -135,18 +45,39 @@ shipping status, and payment information.
       project: z.string().optional().describe('JIRA project key to search within (e.g., "STFS")'),
     },
     async (args) => {
-      // TODO: Wire to real JIRA search
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            query: args.query,
-            project: args.project,
-            results: [],
-            message: 'JIRA search not yet connected',
-          }, null, 2),
-        }],
-      };
+      if (!jiraCreds) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              query: args.query,
+              project: args.project,
+              results: [],
+              message: 'JIRA is not configured. Ask the agent to set up JIRA credentials in Settings.',
+            }, null, 2),
+          }],
+        };
+      }
+      try {
+        const client = new JiraClient(jiraCreds);
+        const results = await client.search(args.query, args.project);
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              query: args.query,
+              project: args.project,
+              results,
+              count: results.length,
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text' as const, text: `Error searching JIRA: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
     }
   );
 
@@ -166,17 +97,36 @@ Tags are additive — existing tags are preserved.
           isError: true,
         };
       }
-      // TODO: Wire to ZendeskClient.updateTicket()
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            ticketId,
-            added: args.tags,
-            message: 'Tags added successfully',
-          }, null, 2),
-        }],
-      };
+      if (!zendeskCreds) {
+        return {
+          content: [{ type: 'text' as const, text: 'Error: Zendesk credentials not configured. Cannot add tags.' }],
+          isError: true,
+        };
+      }
+      try {
+        const client = new ZendeskClient(zendeskCreds);
+        // Fetch existing tags, merge with new ones (additive)
+        const ticket = await client.getTicket(ticketId);
+        const existingTags = ticket.tags || [];
+        const mergedTags = [...new Set([...existingTags, ...args.tags])];
+        await client.updateTicket(ticketId, { ticket: { tags: mergedTags } });
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              ticketId,
+              added: args.tags,
+              allTags: mergedTags,
+              message: 'Tags added successfully',
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text' as const, text: `Error adding tags: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
     }
   );
 
@@ -196,17 +146,38 @@ Use this to document findings, leave context for other agents, or record trouble
           isError: true,
         };
       }
-      // TODO: Wire to ZendeskClient.updateTicket() with public: false
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            ticketId,
-            message: 'Internal note added successfully',
-            preview: args.note.substring(0, 100) + (args.note.length > 100 ? '...' : ''),
-          }, null, 2),
-        }],
-      };
+      if (!zendeskCreds) {
+        return {
+          content: [{ type: 'text' as const, text: 'Error: Zendesk credentials not configured. Cannot add note.' }],
+          isError: true,
+        };
+      }
+      try {
+        const client = new ZendeskClient(zendeskCreds);
+        await client.updateTicket(ticketId, {
+          ticket: {
+            comment: {
+              body: args.note,
+              public: false,
+            },
+          },
+        });
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              ticketId,
+              message: 'Internal note added successfully',
+              preview: args.note.substring(0, 100) + (args.note.length > 100 ? '...' : ''),
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text' as const, text: `Error adding internal note: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
     }
   );
 
@@ -310,9 +281,6 @@ for the human agent to review and approve.`,
   );
 
   return [
-    searchKnowledgeBase,
-    lookupOrder,
-    lookupRegistration,
     searchJira,
     addTicketTags,
     addInternalNote,
@@ -336,6 +304,8 @@ export const ZENDESK_CONFIRMATION_TOOLS = new Set([
 export function getZendeskToolsServer(
   sessionId: string,
   ticketId: number,
+  zendeskCreds?: ZendeskCredentials,
+  jiraCreds?: { baseUrl: string; email: string; apiToken: string },
 ): ReturnType<typeof createSdkMcpServer> {
   const cacheKey = `${sessionId}::${ticketId}`;
   let cached = zendeskToolsCache.get(cacheKey);
@@ -343,7 +313,7 @@ export function getZendeskToolsServer(
     cached = createSdkMcpServer({
       name: 'zendesk-tools',
       version: '1.0.0',
-      tools: createZendeskTools(ticketId),
+      tools: createZendeskTools(ticketId, zendeskCreds, jiraCreds),
     });
     zendeskToolsCache.set(cacheKey, cached);
     debug(`[ZendeskToolsServer] Created tools server for session ${sessionId}, ticket #${ticketId}`);

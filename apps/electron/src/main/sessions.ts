@@ -426,6 +426,12 @@ interface ManagedSession {
   zendeskTicketId?: number
   // Zendesk ticket context (for building the system prompt)
   zendeskTicketContext?: import('@craft-agent/shared/zendesk').TicketContext
+  // Zendesk API credentials for auto-execute tools
+  zendeskCredentials?: import('@craft-agent/shared/zendesk').ZendeskCredentials
+  // JIRA API credentials for search_jira tool
+  jiraCredentials?: { baseUrl: string; email: string; apiToken: string }
+  // n8n API key for n8n MCP server
+  n8nApiKey?: string
 }
 
 // Convert runtime Message to StoredMessage for persistence
@@ -1523,6 +1529,9 @@ export class SessionManager {
       // Zendesk session fields
       zendeskTicketId: options?.zendeskTicketId,
       zendeskTicketContext: options?.zendeskTicketContext,
+      zendeskCredentials: options?.zendeskCredentials,
+      jiraCredentials: options?.jiraCredentials,
+      n8nApiKey: options?.n8nApiKey,
     }
 
     this.sessions.set(storedSession.id, managed)
@@ -1564,6 +1573,10 @@ export class SessionManager {
         systemPromptPreset: managed.systemPromptPreset,
         // Zendesk ticket context (for zendesk preset sessions)
         zendeskContext: managed.zendeskTicketContext,
+        // Zendesk/JIRA/n8n credentials for auto-execute tools
+        zendeskCredentials: managed.zendeskCredentials,
+        jiraCredentials: managed.jiraCredentials,
+        n8nApiKey: managed.n8nApiKey,
         // Always pass session object - id is required for plan mode callbacks
         // sdkSessionId is optional and used for conversation resumption
         session: {

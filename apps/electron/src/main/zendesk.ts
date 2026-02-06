@@ -52,6 +52,54 @@ async function saveZendeskCredentials(creds: ZendeskCredentials): Promise<void> 
 }
 
 /**
+ * Load saved JIRA credentials from the encrypted credential store.
+ * Returns null if no credentials are saved.
+ */
+async function loadJiraCredentials(): Promise<{ baseUrl: string; email: string; apiToken: string } | null> {
+  const credManager = getCredentialManager()
+  const stored = await credManager.get({ type: 'source_apikey', name: 'jira' })
+  if (!stored?.value) return null
+  try {
+    return JSON.parse(stored.value) as { baseUrl: string; email: string; apiToken: string }
+  } catch (err) {
+    mainLog.error('[zendesk] Failed to deserialize JIRA credentials:', err)
+    return null
+  }
+}
+
+/**
+ * Save JIRA credentials to the encrypted credential store.
+ */
+async function saveJiraCredentials(creds: { baseUrl: string; email: string; apiToken: string }): Promise<void> {
+  const credManager = getCredentialManager()
+  await credManager.set(
+    { type: 'source_apikey', name: 'jira' },
+    { value: JSON.stringify(creds) },
+  )
+}
+
+/**
+ * Load n8n API key from the encrypted credential store.
+ * Returns null if no key is saved.
+ */
+async function loadN8nApiKey(): Promise<string | null> {
+  const credManager = getCredentialManager()
+  const stored = await credManager.get({ type: 'source_apikey', name: 'n8n' })
+  return stored?.value ?? null
+}
+
+/**
+ * Save n8n API key to the encrypted credential store.
+ */
+async function saveN8nApiKey(apiKey: string): Promise<void> {
+  const credManager = getCredentialManager()
+  await credManager.set(
+    { type: 'source_apikey', name: 'n8n' },
+    { value: apiKey },
+  )
+}
+
+/**
  * Broadcast ticket diff to all renderer windows.
  */
 function broadcastTicketUpdate(
@@ -157,12 +205,23 @@ export function registerZendeskHandlers(windowManager: WindowManager, sessionMan
     IPC_CHANNELS.ZENDESK_CREATE_SESSION,
     async (_event, data: { ticketId: number; workspaceId: string; ticketContext: TicketContext }) => {
       mainLog.info(`[zendesk] Creating session for ticket #${data.ticketId}`)
+
+      // Load all credentials in parallel for the AI tools
+      const [zendeskCreds, jiraCreds, n8nApiKey] = await Promise.all([
+        loadZendeskCredentials(),
+        loadJiraCredentials(),
+        loadN8nApiKey(),
+      ])
+
       const session = await sessionManager.createSession(data.workspaceId, {
         systemPromptPreset: 'zendesk',
         hidden: true,
         workingDirectory: 'none',
         zendeskTicketId: data.ticketId,
         zendeskTicketContext: data.ticketContext,
+        zendeskCredentials: zendeskCreds ?? undefined,
+        jiraCredentials: jiraCreds ?? undefined,
+        n8nApiKey: n8nApiKey ?? undefined,
       })
       mainLog.info(`[zendesk] Session created: ${session.id} for ticket #${data.ticketId}`)
       return session
@@ -229,4 +288,32 @@ export function registerZendeskHandlers(windowManager: WindowManager, sessionMan
       mainLog.info(`[zendesk] Action cancelled`)
     },
   )
+
+  // ============================================
+  // JIRA & n8n Credential Management
+  // ============================================
+
+  // Get saved JIRA credentials
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_GET_JIRA_CREDENTIALS, async () => {
+    return await loadJiraCredentials()
+  })
+
+  // Save JIRA credentials
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_SAVE_JIRA_CREDENTIALS, async (_event, creds: { baseUrl: string; email: string; apiToken: string }) => {
+    mainLog.info('[zendesk] Saving JIRA credentials for', creds.baseUrl)
+    await saveJiraCredentials(creds)
+    mainLog.info('[zendesk] JIRA credentials saved successfully')
+  })
+
+  // Get saved n8n API key
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_GET_N8N_API_KEY, async () => {
+    return await loadN8nApiKey()
+  })
+
+  // Save n8n API key
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_SAVE_N8N_API_KEY, async (_event, apiKey: string) => {
+    mainLog.info('[zendesk] Saving n8n API key')
+    await saveN8nApiKey(apiKey)
+    mainLog.info('[zendesk] n8n API key saved successfully')
+  })
 }
