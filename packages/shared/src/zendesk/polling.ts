@@ -22,6 +22,7 @@ export class TicketPollingService {
   private client: ZendeskClient;
   private config: PollingConfig;
   private onDiff: (diff: TicketDiff) => void;
+  private knownTickets: Map<number, { id: number; updated_at: string }> = new Map();
 
   constructor(
     client: ZendeskClient,
@@ -77,7 +78,18 @@ export class TicketPollingService {
   async poll(): Promise<void> {
     try {
       const tickets = await this.client.searchAssignedTickets();
-      this.onDiff({ added: tickets, updated: [], removed: [] });
+      const diff = TicketPollingService.diff(this.knownTickets, tickets);
+
+      // Update internal state to reflect current snapshot
+      this.knownTickets.clear();
+      for (const ticket of tickets) {
+        this.knownTickets.set(ticket.id, { id: ticket.id, updated_at: ticket.updated_at });
+      }
+
+      // Only emit if there are actual changes
+      if (diff.added.length || diff.updated.length || diff.removed.length) {
+        this.onDiff(diff);
+      }
     } catch (error) {
       console.error('[TicketPolling] Error:', error);
     }

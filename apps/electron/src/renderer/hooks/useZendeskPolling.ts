@@ -51,10 +51,12 @@ export function useZendeskPolling() {
       setQueue((prev) => {
         const next = new Map(prev)
 
-        // Add new tickets
+        // Add new tickets (only if not already in queue)
         const added = (diff.added ?? []) as ZendeskTicket[]
         for (const ticket of added) {
-          next.set(ticket.id, createQueueItem(ticket))
+          if (!next.has(ticket.id)) {
+            next.set(ticket.id, createQueueItem(ticket))
+          }
         }
 
         // Update existing tickets (preserve local processing state)
