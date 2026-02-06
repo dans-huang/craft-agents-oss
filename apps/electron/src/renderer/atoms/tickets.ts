@@ -78,3 +78,16 @@ export const filteredTicketsAtom = atom((get) => {
   if (filter === 'all') return tickets
   return tickets.filter((t) => t.status === filter)
 })
+
+// ---------------------------------------------------------------------------
+// Zendesk Mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the app is operating in "Zendesk mode".
+ *
+ * True when Zendesk credentials are configured and polling is active
+ * (i.e., polling status is not idle) OR there are tickets in the queue.
+ * Used by the sidebar to conditionally show the TicketQueue panel.
+ */
+export const zendeskModeAtom = atom<boolean>(false)

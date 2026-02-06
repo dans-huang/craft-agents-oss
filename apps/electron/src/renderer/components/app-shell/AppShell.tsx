@@ -65,6 +65,8 @@ import {
 } from "@/components/ui/collapsible"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 import { SessionList } from "./SessionList"
+import { TicketQueue } from "../zendesk/TicketQueue"
+import { zendeskModeAtom } from "@/atoms/tickets"
 import { MainContentPanel } from "./MainContentPanel"
 import type { ChatDisplayHandle } from "./ChatDisplay"
 import { LeftSidebar } from "./LeftSidebar"
@@ -1155,6 +1157,7 @@ function AppShellContent({
   // Use session metadata from Jotai atom (lightweight, no messages)
   // This prevents closures from retaining full message arrays
   const sessionMetaMap = useAtomValue(sessionMetaMapAtom)
+  const isZendeskMode = useAtomValue(zendeskModeAtom)
 
   // Filter session metadata by active workspace
   // Also exclude hidden sessions (mini-agent sessions) from all counts and lists
@@ -2888,8 +2891,13 @@ function AppShellContent({
               />
             )}
             {isChatsNavigation(navState) && (
-              /* Sessions List */
+              /* Sessions List (or TicketQueue in Zendesk mode) */
               <>
+                {/* Zendesk mode: show TicketQueue instead of SessionList */}
+                {isZendeskMode ? (
+                  <TicketQueue />
+                ) : (
+                <>
                 {/* SessionList: Scrollable list of session cards */}
                 {/* Key on sidebarMode forces full remount when switching views, skipping animations */}
                 <SessionList
@@ -2944,6 +2952,8 @@ function AppShellContent({
                   statusFilter={listFilter}
                   labelFilterMap={labelFilter}
                 />
+                </>
+                )}
               </>
             )}
             </div>
