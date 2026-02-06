@@ -5,8 +5,8 @@
  * Users enter their subdomain, email, and API token,
  * test the connection, then save credentials.
  *
- * The window.electronAPI calls use optional chaining because
- * the IPC bridge (Task 14) is not yet implemented.
+ * The window.electronAPI calls use optional chaining for safety,
+ * backed by the IPC bridge implemented in Task 14.
  */
 
 import * as React from 'react'

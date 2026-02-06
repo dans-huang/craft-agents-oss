@@ -746,6 +746,15 @@ export const IPC_CHANNELS = {
   GITBASH_BROWSE: 'gitbash:browse',
   GITBASH_SET_PATH: 'gitbash:setPath',
 
+  // Zendesk operations
+  ZENDESK_TEST_CONNECTION: 'zendesk:test-connection',
+  ZENDESK_SAVE_CREDENTIALS: 'zendesk:save-credentials',
+  ZENDESK_GET_CREDENTIALS: 'zendesk:get-credentials',
+  ZENDESK_START_POLLING: 'zendesk:start-polling',
+  ZENDESK_STOP_POLLING: 'zendesk:stop-polling',
+  ZENDESK_POLL_NOW: 'zendesk:poll-now',
+  ZENDESK_TICKET_UPDATE: 'zendesk:ticket-update',  // main → renderer broadcast
+
   // Menu actions (renderer → main for window/app control)
   MENU_QUIT: 'menu:quit',
   MENU_MINIMIZE: 'menu:minimize',
@@ -1034,8 +1043,13 @@ export interface ElectronAPI {
   setGitBashPath(path: string): Promise<{ success: boolean; error?: string }>
 
   // Zendesk (IPC bridge - Task 14)
-  testZendeskConnection?(credentials: { subdomain: string; email: string; apiToken: string }): Promise<boolean>
-  saveZendeskCredentials?(credentials: { subdomain: string; email: string; apiToken: string }): Promise<void>
+  testZendeskConnection(credentials: { subdomain: string; email: string; apiToken: string }): Promise<boolean>
+  saveZendeskCredentials(credentials: { subdomain: string; email: string; apiToken: string }): Promise<void>
+  getZendeskCredentials(): Promise<{ subdomain: string; email: string; apiToken: string } | null>
+  startZendeskPolling(): Promise<void>
+  stopZendeskPolling(): Promise<void>
+  pollZendeskNow(): Promise<void>
+  onZendeskTicketUpdate(callback: (data: { added: unknown[]; updated: unknown[]; removed: number[] }) => void): () => void
 
   // Menu actions (from renderer to main)
   menuQuit(): Promise<void>

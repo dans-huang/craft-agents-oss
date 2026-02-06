@@ -466,6 +466,27 @@ const api: ElectronAPI = {
   browseForGitBash: () => ipcRenderer.invoke(IPC_CHANNELS.GITBASH_BROWSE),
   setGitBashPath: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.GITBASH_SET_PATH, path),
 
+  // Zendesk operations
+  testZendeskConnection: (credentials: { subdomain: string; email: string; apiToken: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_TEST_CONNECTION, credentials),
+  saveZendeskCredentials: (credentials: { subdomain: string; email: string; apiToken: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_SAVE_CREDENTIALS, credentials),
+  getZendeskCredentials: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_GET_CREDENTIALS),
+  startZendeskPolling: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_START_POLLING),
+  stopZendeskPolling: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_STOP_POLLING),
+  pollZendeskNow: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_POLL_NOW),
+  onZendeskTicketUpdate: (callback: (data: { added: unknown[]; updated: unknown[]; removed: number[] }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { added: unknown[]; updated: unknown[]; removed: number[] }) => {
+      callback(data)
+    }
+    ipcRenderer.on(IPC_CHANNELS.ZENDESK_TICKET_UPDATE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ZENDESK_TICKET_UPDATE, handler)
+  },
+
   // Menu actions (for unified Craft menu)
   menuQuit: () => ipcRenderer.invoke(IPC_CHANNELS.MENU_QUIT),
   menuNewWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MENU_NEW_WINDOW),

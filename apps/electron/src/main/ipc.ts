@@ -9,6 +9,7 @@ import { SessionManager } from './sessions'
 import { ipcLog, windowLog, searchLog } from './logger'
 import { WindowManager } from './window-manager'
 import { registerOnboardingHandlers } from './onboarding'
+import { registerZendeskHandlers } from './zendesk'
 import { IPC_CHANNELS, type FileAttachment, type StoredAttachment, type AuthType, type ApiSetupInfo, type SendMessageOptions } from '../shared/types'
 import { readFileAttachment, perf, validateImageForClaudeAPI, IMAGE_LIMITS } from '@craft-agent/shared/utils'
 import { getAuthType, setAuthType, getPreferencesPath, getCustomModel, setCustomModel, getModel, setModel, getSessionDraft, setSessionDraft, deleteSessionDraft, getAllSessionDrafts, getWorkspaceByNameOrId, addWorkspace, setActiveWorkspace, getAnthropicBaseUrl, setAnthropicBaseUrl, loadStoredConfig, saveConfig, type Workspace, SUMMARIZATION_MODEL } from '@craft-agent/shared/config'
@@ -2321,6 +2322,9 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
 
   // Register onboarding handlers
   registerOnboardingHandlers(sessionManager)
+
+  // Register Zendesk handlers (connection, credentials, polling)
+  registerZendeskHandlers(windowManager)
 
   // ============================================================
   // Theme (app-level only)
