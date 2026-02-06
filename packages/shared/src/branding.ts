@@ -1,7 +1,10 @@
 /**
- * Centralized branding assets for Craft Agent
- * Used by OAuth callback pages
+ * Centralized branding assets for Craft Agent for Zendesk
+ * Used by OAuth callback pages and window titles
  */
+
+export const APP_NAME = 'Craft Agent for Zendesk';
+export const APP_SLUG = 'craft-agent-zendesk';
 
 export const CRAFT_LOGO = [
   '  ████████ █████████    ██████   ██████████ ██████████',

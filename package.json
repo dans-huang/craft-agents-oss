@@ -1,7 +1,7 @@
 {
-  "name": "craft-agent",
+  "name": "craft-agent-zendesk",
   "version": "0.3.3",
-  "description": "Claude Code-like agent for Craft documents",
+  "description": "AI-native Zendesk support interface",
   "type": "module",
   "private": true,
   "workspaces": [
