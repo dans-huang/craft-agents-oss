@@ -117,6 +117,7 @@ import { RightSidebar } from "./RightSidebar"
 import type { RichTextInputHandle } from "@/components/ui/rich-text-input"
 import { hasOpenOverlay } from "@/lib/overlay-detection"
 import { clearSourceIconCaches } from "@/lib/icon-cache"
+import { useZendeskPolling } from "@/hooks/useZendeskPolling"
 
 /**
  * AppShellProps - Minimal props interface for AppShell component
@@ -535,6 +536,9 @@ function AppShellContent({
 
   // Double-Esc interrupt feature: first Esc shows warning, second Esc interrupts
   const { handleEscapePress } = useEscapeInterrupt()
+
+  // Start Zendesk polling on mount (activates only when credentials are configured)
+  useZendeskPolling()
 
   // UNIFIED NAVIGATION STATE - single source of truth from NavigationContext
   // All sidebar/navigator/main panel state is derived from this
