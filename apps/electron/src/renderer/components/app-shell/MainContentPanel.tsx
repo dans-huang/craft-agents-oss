@@ -13,6 +13,7 @@
  */
 
 import * as React from 'react'
+import { useAtomValue } from 'jotai'
 import { Panel } from './Panel'
 import { cn } from '@/lib/utils'
 import { useAppShellContext } from '@/context/AppShellContext'
@@ -24,7 +25,8 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
 } from '@/contexts/NavigationContext'
-import { AppSettingsPage, AppearanceSettingsPage, InputSettingsPage, WorkspaceSettingsPage, PermissionsSettingsPage, LabelsSettingsPage, PreferencesPage, ShortcutsPage, ZendeskSetupPage, SourceInfoPage, ChatPage } from '@/pages'
+import { activeTicketIdAtom } from '@/atoms/tickets'
+import { AppSettingsPage, AppearanceSettingsPage, InputSettingsPage, WorkspaceSettingsPage, PermissionsSettingsPage, LabelsSettingsPage, PreferencesPage, ShortcutsPage, ZendeskSetupPage, SourceInfoPage, ChatPage, TicketPage } from '@/pages'
 import SkillInfoPage from '@/pages/SkillInfoPage'
 
 export interface MainContentPanelProps {
@@ -40,6 +42,7 @@ export function MainContentPanel({
 }: MainContentPanelProps) {
   const navState = useNavigationState()
   const { activeWorkspaceId } = useAppShellContext()
+  const activeTicketId = useAtomValue(activeTicketIdAtom)
 
   // Wrap content with StoplightProvider so PanelHeaders auto-compensate in focused mode
   const wrapWithStoplight = (content: React.ReactNode) => (
@@ -154,7 +157,15 @@ export function MainContentPanel({
   }
 
   // Chats navigator - show chat or empty state
+  // When a Zendesk ticket is active, show split-panel TicketPage instead of ChatPage
   if (isChatsNavigation(navState)) {
+    if (activeTicketId !== null) {
+      return wrapWithStoplight(
+        <Panel variant="grow" className={className}>
+          <TicketPage />
+        </Panel>
+      )
+    }
     if (navState.details) {
       return wrapWithStoplight(
         <Panel variant="grow" className={className}>
