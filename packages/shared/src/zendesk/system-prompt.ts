@@ -38,7 +38,7 @@ Follow these phases in order:
 ### n8n Workflow Tools
 You have access to n8n workflow tools via the n8n MCP server. Key workflows:
 - Use workflow_execute to run workflows for KB search, order lookup, registration lookup
-- Workflow ID for Devin 3.0: T79cByyIYCBrnMx0
+- Workflow ID for Devin 2.0 (active): Fg1H7cHTkeEWXQJo
 - Input format: { "data": { "chatInput": "<your query>" } }
 - Example: search KB → workflow_execute with chatInput "Search knowledge base for Spark 40 power issue"
 - Example: order lookup → workflow_execute with chatInput "Lookup order #12345"

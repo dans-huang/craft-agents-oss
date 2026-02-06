@@ -26,7 +26,7 @@ export class JiraClient {
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/rest/api/2${path}`, {
+    const response = await fetch(`${this.baseUrl}/rest/api/3${path}`, {
       ...options,
       headers: {
         'Authorization': this.getAuthHeader(),
@@ -61,7 +61,7 @@ export class JiraClient {
           issuetype: { name: string };
         };
       }>;
-    }>(`/search?jql=${encodeURIComponent(jql)}&maxResults=10&fields=summary,status,priority,assignee,created,updated,issuetype`);
+    }>(`/search/jql?jql=${encodeURIComponent(jql)}&maxResults=10&fields=summary,status,priority,assignee,created,updated,issuetype`);
 
     return data.issues.map((issue) => ({
       key: issue.key,

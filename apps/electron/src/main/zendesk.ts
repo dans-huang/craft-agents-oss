@@ -55,9 +55,14 @@ async function saveZendeskCredentials(creds: ZendeskCredentials): Promise<void> 
  * Load saved JIRA credentials from the encrypted credential store.
  * Returns null if no credentials are saved.
  */
+// Credential IDs use workspaceId='_zendesk' + sourceId to create unique keys
+// (source_apikey without workspaceId+sourceId maps to a single 'global' slot)
+const JIRA_CRED_ID = { type: 'source_apikey' as const, workspaceId: '_zendesk', sourceId: 'jira' }
+const N8N_CRED_ID = { type: 'source_apikey' as const, workspaceId: '_zendesk', sourceId: 'n8n' }
+
 async function loadJiraCredentials(): Promise<{ baseUrl: string; email: string; apiToken: string } | null> {
   const credManager = getCredentialManager()
-  const stored = await credManager.get({ type: 'source_apikey', name: 'jira' })
+  const stored = await credManager.get(JIRA_CRED_ID)
   if (!stored?.value) return null
   try {
     return JSON.parse(stored.value) as { baseUrl: string; email: string; apiToken: string }
@@ -72,10 +77,7 @@ async function loadJiraCredentials(): Promise<{ baseUrl: string; email: string; 
  */
 async function saveJiraCredentials(creds: { baseUrl: string; email: string; apiToken: string }): Promise<void> {
   const credManager = getCredentialManager()
-  await credManager.set(
-    { type: 'source_apikey', name: 'jira' },
-    { value: JSON.stringify(creds) },
-  )
+  await credManager.set(JIRA_CRED_ID, { value: JSON.stringify(creds) })
 }
 
 /**
@@ -84,7 +86,7 @@ async function saveJiraCredentials(creds: { baseUrl: string; email: string; apiT
  */
 async function loadN8nApiKey(): Promise<string | null> {
   const credManager = getCredentialManager()
-  const stored = await credManager.get({ type: 'source_apikey', name: 'n8n' })
+  const stored = await credManager.get(N8N_CRED_ID)
   return stored?.value ?? null
 }
 
@@ -93,10 +95,7 @@ async function loadN8nApiKey(): Promise<string | null> {
  */
 async function saveN8nApiKey(apiKey: string): Promise<void> {
   const credManager = getCredentialManager()
-  await credManager.set(
-    { type: 'source_apikey', name: 'n8n' },
-    { value: apiKey },
-  )
+  await credManager.set(N8N_CRED_ID, { value: apiKey })
 }
 
 /**
@@ -295,7 +294,7 @@ export function registerZendeskHandlers(windowManager: WindowManager, sessionMan
 
   // Get saved JIRA credentials
   ipcMain.handle(IPC_CHANNELS.ZENDESK_GET_JIRA_CREDENTIALS, async () => {
-    return await loadJiraCredentials()
+    return loadJiraCredentials()
   })
 
   // Save JIRA credentials
@@ -307,7 +306,7 @@ export function registerZendeskHandlers(windowManager: WindowManager, sessionMan
 
   // Get saved n8n API key
   ipcMain.handle(IPC_CHANNELS.ZENDESK_GET_N8N_API_KEY, async () => {
-    return await loadN8nApiKey()
+    return loadN8nApiKey()
   })
 
   // Save n8n API key
