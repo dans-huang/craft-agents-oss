@@ -141,6 +141,23 @@ export const PreferencesIcon = ({ className }: IconProps) => (
   </svg>
 )
 
+/** Headset icon for Zendesk settings */
+export const ZendeskIcon = ({ className }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 2C7.58172 2 4 5.58172 4 10V11C2.34315 11 1 12.3431 1 14V17C1 18.6569 2.34315 20 4 20H6C6.55228 20 7 19.5523 7 19V12C7 11.4477 6.55228 11 6 11H6V10C6 6.68629 8.68629 4 12 4C15.3137 4 18 6.68629 18 10V11H18C17.4477 11 17 11.4477 17 12V19C17 19.5523 17.4477 20 18 20H18C18 21.1046 17.1046 22 16 22H14C13.4477 22 13 21.5523 13 21C13 20.4477 13.4477 20 14 20H16V20H20C21.6569 20 23 18.6569 23 17V14C23 12.3431 21.6569 11 20 11V10C20 5.58172 16.4183 2 12 2Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
 /**
  * Map of settings subpage IDs to their icon components.
  * Used by both AppMenu and SettingsNavigator for consistent icons.
@@ -154,4 +171,5 @@ export const SETTINGS_ICONS: Record<SettingsSubpage, React.ComponentType<IconPro
   labels: LabelsIcon,
   shortcuts: ShortcutsIcon,
   preferences: PreferencesIcon,
+  zendesk: ZendeskIcon,
 }

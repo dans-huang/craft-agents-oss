@@ -165,6 +165,7 @@ export const NavigationRegistry = {
       labels: PlaceholderComponent, // LabelsSettingsPage
       shortcuts: PlaceholderComponent, // ShortcutsPage
       preferences: PlaceholderComponent, // PreferencesPage
+      zendesk: PlaceholderComponent, // ZendeskSetupPage
     },
     defaultDetails: 'app', // Always has a default
     getFirstItem: () => 'app',

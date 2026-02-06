@@ -1033,6 +1033,10 @@ export interface ElectronAPI {
   browseForGitBash(): Promise<string | null>
   setGitBashPath(path: string): Promise<{ success: boolean; error?: string }>
 
+  // Zendesk (IPC bridge - Task 14)
+  testZendeskConnection?(credentials: { subdomain: string; email: string; apiToken: string }): Promise<boolean>
+  saveZendeskCredentials?(credentials: { subdomain: string; email: string; apiToken: string }): Promise<void>
+
   // Menu actions (from renderer to main)
   menuQuit(): Promise<void>
   menuNewWindow(): Promise<void>
@@ -1150,7 +1154,7 @@ export type ChatFilter =
 /**
  * Settings subpage options
  */
-export type SettingsSubpage = 'app' | 'appearance' | 'input' | 'workspace' | 'permissions' | 'labels' | 'shortcuts' | 'preferences'
+export type SettingsSubpage = 'app' | 'appearance' | 'input' | 'workspace' | 'permissions' | 'labels' | 'shortcuts' | 'preferences' | 'zendesk'
 
 /**
  * Chats navigation state - shows SessionList in navigator
@@ -1319,7 +1323,7 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
   if (key === 'settings') return { navigator: 'settings', subpage: 'app' }
   if (key.startsWith('settings:')) {
     const subpage = key.slice(9) as SettingsSubpage
-    if (['app', 'appearance', 'input', 'workspace', 'permissions', 'labels', 'shortcuts', 'preferences'].includes(subpage)) {
+    if (['app', 'appearance', 'input', 'workspace', 'permissions', 'labels', 'shortcuts', 'preferences', 'zendesk'].includes(subpage)) {
       return { navigator: 'settings', subpage }
     }
   }

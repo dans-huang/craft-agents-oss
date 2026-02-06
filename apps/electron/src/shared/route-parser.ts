@@ -94,7 +94,7 @@ export function parseCompoundRoute(route: string): ParsedCompoundRoute | null {
   // Settings navigator
   if (first === 'settings') {
     const subpage = (segments[1] || 'app') as SettingsSubpage
-    const validSubpages: SettingsSubpage[] = ['app', 'appearance', 'input', 'workspace', 'permissions', 'labels', 'shortcuts', 'preferences']
+    const validSubpages: SettingsSubpage[] = ['app', 'appearance', 'input', 'workspace', 'permissions', 'labels', 'shortcuts', 'preferences', 'zendesk']
     if (!validSubpages.includes(subpage)) return null
     return {
       navigator: 'settings',
@@ -500,6 +500,8 @@ function convertParsedRouteToNavigationState(parsed: ParsedRoute): NavigationSta
       return { navigator: 'settings', subpage: 'shortcuts' }
     case 'preferences':
       return { navigator: 'settings', subpage: 'preferences' }
+    case 'zendesk':
+      return { navigator: 'settings', subpage: 'zendesk' }
     case 'sources':
       return { navigator: 'sources', details: null }
     case 'source-info':

@@ -151,7 +151,7 @@ export const routes = {
     },
 
     /** Settings view (settings navigator) */
-    settings: (subpage?: 'app' | 'appearance' | 'input' | 'workspace' | 'permissions' | 'labels' | 'shortcuts' | 'preferences') =>
+    settings: (subpage?: 'app' | 'appearance' | 'input' | 'workspace' | 'permissions' | 'labels' | 'shortcuts' | 'preferences' | 'zendesk') =>
       subpage && subpage !== 'app'
         ? `settings/${subpage}` as const
         : 'settings' as const,

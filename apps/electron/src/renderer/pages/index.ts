@@ -17,4 +17,5 @@ export {
   LabelsSettingsPage,
   ShortcutsPage,
   PreferencesPage,
+  ZendeskSetupPage,
 } from './settings'
