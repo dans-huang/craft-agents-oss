@@ -17,7 +17,9 @@ import {
 } from '@craft-agent/shared/zendesk'
 import type { ZendeskCredentials } from '@craft-agent/shared/zendesk'
 import { IPC_CHANNELS } from '../shared/types'
+import type { TicketContext } from '@craft-agent/shared/zendesk'
 import type { WindowManager } from './window-manager'
+import type { SessionManager } from './sessions'
 
 // Module-level state for the polling service
 let pollingService: TicketPollingService | null = null
@@ -67,7 +69,7 @@ function broadcastTicketUpdate(
 // IPC Handlers
 // ============================================
 
-export function registerZendeskHandlers(windowManager: WindowManager): void {
+export function registerZendeskHandlers(windowManager: WindowManager, sessionManager: SessionManager): void {
   // Test Zendesk connection with provided credentials
   ipcMain.handle(IPC_CHANNELS.ZENDESK_TEST_CONNECTION, async (_event, creds: ZendeskCredentials) => {
     mainLog.info('[zendesk] Testing connection for', creds.subdomain)
@@ -145,4 +147,86 @@ export function registerZendeskHandlers(windowManager: WindowManager): void {
 
     await pollingService.poll()
   })
+
+  // ============================================
+  // Session Creation & Action Confirmation
+  // ============================================
+
+  // Create a Zendesk AI session linked to a ticket
+  ipcMain.handle(
+    IPC_CHANNELS.ZENDESK_CREATE_SESSION,
+    async (_event, data: { ticketId: number; workspaceId: string; ticketContext: TicketContext }) => {
+      mainLog.info(`[zendesk] Creating session for ticket #${data.ticketId}`)
+      const session = await sessionManager.createSession(data.workspaceId, {
+        systemPromptPreset: 'zendesk',
+        hidden: true,
+        workingDirectory: 'none',
+        zendeskTicketId: data.ticketId,
+        zendeskTicketContext: data.ticketContext,
+      })
+      mainLog.info(`[zendesk] Session created: ${session.id} for ticket #${data.ticketId}`)
+      return session
+    },
+  )
+
+  // Confirm a pending action (execute via Zendesk API)
+  ipcMain.handle(
+    IPC_CHANNELS.ZENDESK_CONFIRM_ACTION,
+    async (_event, data: { ticketId: number; actionId: string; actionPayload: Record<string, unknown> }) => {
+      mainLog.info(`[zendesk] Confirming action ${data.actionId} for ticket #${data.ticketId}`)
+      try {
+        const creds = await loadZendeskCredentials()
+        if (!creds) {
+          return { success: false, error: 'No Zendesk credentials configured' }
+        }
+
+        const client = new ZendeskClient(creds)
+        const payload = data.actionPayload
+        const action = payload.action as string
+
+        if (action === 'draft_reply') {
+          // Send the reply to the customer
+          await client.updateTicket(data.ticketId, {
+            ticket: {
+              comment: {
+                body: payload.body as string,
+                public: true,
+              },
+              ...(payload.setStatus ? { status: payload.setStatus as any } : {}),
+            },
+          })
+        } else if (action === 'request_status_change') {
+          await client.updateTicket(data.ticketId, {
+            ticket: {
+              status: payload.requestedStatus as any,
+            },
+          })
+        } else if (action === 'request_escalation') {
+          // Add internal note with escalation reason
+          await client.updateTicket(data.ticketId, {
+            ticket: {
+              comment: {
+                body: `**Escalation requested:** ${payload.reason}${payload.targetGroup ? `\nTarget group: ${payload.targetGroup}` : ''}`,
+                public: false,
+              },
+            },
+          })
+        }
+
+        mainLog.info(`[zendesk] Action ${data.actionId} confirmed successfully`)
+        return { success: true }
+      } catch (err) {
+        mainLog.error(`[zendesk] Action ${data.actionId} failed:`, err)
+        return { success: false, error: String(err) }
+      }
+    },
+  )
+
+  // Cancel a pending action (just acknowledge — renderer removes from atoms)
+  ipcMain.handle(
+    IPC_CHANNELS.ZENDESK_CANCEL_ACTION,
+    async (_event, _data: { ticketId: number; actionId: string }) => {
+      mainLog.info(`[zendesk] Action cancelled`)
+    },
+  )
 }

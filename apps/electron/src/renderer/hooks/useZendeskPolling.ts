@@ -10,15 +10,25 @@
  * 3. Starts polling via IPC
  * 4. Listens for ticket-update events from the main process
  * 5. Updates ticketQueueAtom with incoming ticket data
+ * 6. Listens for session events to update ticket status
+ * 7. Listens for pending action events from zendesk tool results
  *
  * On unmount: removes the IPC listener and stops polling.
  */
 
 import { useEffect, useCallback } from 'react'
-import { useSetAtom } from 'jotai'
-import { ticketQueueAtom, pollingStatusAtom, zendeskModeAtom } from '@/atoms/tickets'
+import { useSetAtom, useAtomValue } from 'jotai'
+import {
+  ticketQueueAtom,
+  pollingStatusAtom,
+  zendeskModeAtom,
+  setTicketStatusAtom,
+  addPendingActionAtom,
+  ticketBySessionIdAtom,
+} from '@/atoms/tickets'
 import type { ZendeskTicket } from '@craft-agent/shared/zendesk'
 import type { TicketQueueItem } from '@/types/ticket'
+import type { SessionEvent } from '../../shared/types'
 
 /**
  * Build a fresh TicketQueueItem for a newly-discovered ticket.
@@ -41,6 +51,9 @@ export function useZendeskPolling() {
   const setQueue = useSetAtom(ticketQueueAtom)
   const setPollingStatus = useSetAtom(pollingStatusAtom)
   const setZendeskMode = useSetAtom(zendeskModeAtom)
+  const setTicketStatus = useSetAtom(setTicketStatusAtom)
+  const addPendingAction = useSetAtom(addPendingActionAtom)
+  const ticketBySessionId = useAtomValue(ticketBySessionIdAtom)
 
   // -----------------------------------------------------------------------
   // Handle incoming ticket diff from main process
@@ -88,6 +101,52 @@ export function useZendeskPolling() {
   )
 
   // -----------------------------------------------------------------------
+  // Handle session events (update ticket status based on AI session state)
+  // -----------------------------------------------------------------------
+
+  const handleSessionEvent = useCallback(
+    (event: SessionEvent) => {
+      const ticketId = ticketBySessionId.get(event.sessionId)
+      if (!ticketId) return // Not a zendesk session
+
+      switch (event.type) {
+        case 'text_complete':
+          // AI is still working (intermediate messages)
+          break
+        case 'complete':
+          // AI turn completed — if there are pending actions, status is 'ready'
+          // The pending action events will handle setting 'ready' status
+          break
+        case 'error':
+          setTicketStatus({ ticketId, status: 'error', error: event.error })
+          break
+      }
+    },
+    [ticketBySessionId, setTicketStatus],
+  )
+
+  // -----------------------------------------------------------------------
+  // Handle pending action events from main process
+  // -----------------------------------------------------------------------
+
+  const handlePendingAction = useCallback(
+    (data: { ticketId: number; action: { id: string; type: string; label: string; description: string; payload: Record<string, unknown> } }) => {
+      addPendingAction({
+        ticketId: data.ticketId,
+        action: {
+          id: data.action.id,
+          type: data.action.type as any,
+          label: data.action.label,
+          description: data.action.description,
+          payload: data.action.payload,
+          confirmed: false,
+        },
+      })
+    },
+    [addPendingAction],
+  )
+
+  // -----------------------------------------------------------------------
   // Setup: check credentials, start polling, listen for updates
   // -----------------------------------------------------------------------
 
@@ -102,16 +161,24 @@ export function useZendeskPolling() {
     })
 
     // Listen for ticket update events from the main process
-    const cleanup = window.electronAPI?.onZendeskTicketUpdate?.((diff) => {
+    const cleanupTickets = window.electronAPI?.onZendeskTicketUpdate?.((diff) => {
       handleTicketDiff(diff)
       setPollingStatus('idle')
     })
 
+    // Listen for session events (to update ticket status)
+    const cleanupSession = window.electronAPI?.onSessionEvent?.(handleSessionEvent)
+
+    // Listen for pending action events from zendesk tool results
+    const cleanupPendingAction = window.electronAPI?.onZendeskPendingAction?.(handlePendingAction)
+
     return () => {
-      cleanup?.()
+      cleanupTickets?.()
+      cleanupSession?.()
+      cleanupPendingAction?.()
       window.electronAPI?.stopZendeskPolling?.()
     }
-  }, [handleTicketDiff, setPollingStatus, setZendeskMode])
+  }, [handleTicketDiff, handleSessionEvent, handlePendingAction, setPollingStatus, setZendeskMode])
 
   // -----------------------------------------------------------------------
   // Manual refresh

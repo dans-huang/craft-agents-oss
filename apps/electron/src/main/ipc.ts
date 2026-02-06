@@ -2323,8 +2323,8 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
   // Register onboarding handlers
   registerOnboardingHandlers(sessionManager)
 
-  // Register Zendesk handlers (connection, credentials, polling)
-  registerZendeskHandlers(windowManager)
+  // Register Zendesk handlers (connection, credentials, polling, session creation)
+  registerZendeskHandlers(windowManager, sessionManager)
 
   // ============================================================
   // Theme (app-level only)

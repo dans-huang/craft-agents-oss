@@ -52,6 +52,8 @@ import { detectConfigFileType, detectAppConfigFileType, validateConfigFileConten
 import { type ThinkingLevel, getThinkingTokens, DEFAULT_THINKING_LEVEL } from './thinking-levels.ts';
 import type { LoadedSource } from '../sources/types.ts';
 import { sourceNeedsAuthentication } from '../sources/credential-manager.ts';
+import { type TicketContext, buildZendeskSystemPrompt } from '../zendesk/system-prompt.ts';
+import { getZendeskToolsServer } from './zendesk-tools-server.ts';
 
 // Re-export permission mode functions for application usage
 export {
@@ -121,8 +123,10 @@ export interface CraftAgentConfig {
     enabled: boolean;          // Whether debug mode is active
     logFilePath?: string;      // Path to the log file for querying
   };
-  /** System prompt preset for mini agents ('default' | 'mini' or custom string) */
-  systemPromptPreset?: 'default' | 'mini' | string;
+  /** System prompt preset for mini agents ('default' | 'mini' | 'zendesk' or custom string) */
+  systemPromptPreset?: 'default' | 'mini' | 'zendesk' | string;
+  /** Zendesk ticket context for zendesk preset sessions */
+  zendeskContext?: TicketContext;
 }
 
 // Permission request tracking
@@ -809,6 +813,7 @@ export class CraftAgent {
 
       // Detect mini agent mode early (needed for tool/MCP restrictions)
       const isMiniAgent = this.config.systemPromptPreset === 'mini';
+      const isZendeskAgent = this.config.systemPromptPreset === 'zendesk';
 
       // Block SDK tools that require UI we don't have:
       // - EnterPlanMode/ExitPlanMode: We use safe mode instead (user-controlled via UI)
@@ -832,6 +837,14 @@ export class CraftAgent {
               type: 'http',
               url: 'https://agents.craft.do/docs/mcp',
             },
+          }
+        : isZendeskAgent
+        ? {
+            // Zendesk agents: session tools + zendesk tools MCP server
+            session: getSessionScopedTools(sessionId, this.workspaceRootPath),
+            ...(this.config.zendeskContext
+              ? { 'zendesk-tools': getZendeskToolsServer(sessionId, this.config.zendeskContext.ticketId) }
+              : {}),
           }
         : {
             preferences: getPreferencesServer(false),
@@ -876,6 +889,18 @@ export class CraftAgent {
       const isClaude = isClaudeModel(model);
       const useAnthropicBetas = isClaude;
 
+      // Log zendesk agent mode details
+      if (isZendeskAgent) {
+        debug('[CraftAgent] 🎫 ZENDESK AGENT mode - ticket support workflow');
+        debug('[CraftAgent] Zendesk agent config:', {
+          model,
+          ticketId: this.config.zendeskContext?.ticketId,
+          mcpServers: ['session', 'zendesk-tools'],
+          thinking: 'normal',
+          systemPrompt: 'claude_code + zendesk context',
+        });
+      }
+
       // Log mini agent mode details
       if (isMiniAgent) {
         debug('[CraftAgent] 🤖 MINI AGENT mode - optimized for quick config edits');
@@ -909,12 +934,18 @@ export class CraftAgent {
         // Extended thinking: tokens based on effective thinking level (session level + ultrathink override)
         // Non-Claude models don't support extended thinking, so pass 0 to disable
         // Mini agents also disable thinking for efficiency (quick config edits don't need deep reasoning)
-        maxThinkingTokens: isMiniAgent ? 0 : (isClaude ? thinkingTokens : 0),
+        maxThinkingTokens: isMiniAgent ? 0 : (isClaude ? thinkingTokens : 0),  // Zendesk agents use normal thinking (same as regular)
         // System prompt configuration:
         // - Mini agents: Use custom (lean) system prompt without Claude Code preset
         // - Normal agents: Append to Claude Code's system prompt (recommended by docs)
         systemPrompt: this.config.systemPromptPreset === 'mini'
           ? getSystemPrompt(undefined, undefined, this.workspaceRootPath, undefined, 'mini')
+          : isZendeskAgent && this.config.zendeskContext
+          ? {
+              type: 'preset' as const,
+              preset: 'claude_code' as const,
+              append: buildZendeskSystemPrompt(this.config.zendeskContext),
+            }
           : {
               type: 'preset' as const,
               preset: 'claude_code' as const,

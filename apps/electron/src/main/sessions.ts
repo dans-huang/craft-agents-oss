@@ -422,6 +422,10 @@ interface ManagedSession {
   hidden?: boolean
   // Token refresh manager for this session (handles OAuth token refresh with rate limiting)
   tokenRefreshManager?: TokenRefreshManager
+  // Zendesk ticket ID (for zendesk preset sessions)
+  zendeskTicketId?: number
+  // Zendesk ticket context (for building the system prompt)
+  zendeskTicketContext?: import('@craft-agent/shared/zendesk').TicketContext
 }
 
 // Convert runtime Message to StoredMessage for persistence
@@ -1516,6 +1520,9 @@ export class SessionManager {
       tokenRefreshManager: new TokenRefreshManager(getSourceCredentialManager(), {
         log: (msg) => sessionLog.debug(msg),
       }),
+      // Zendesk session fields
+      zendeskTicketId: options?.zendeskTicketId,
+      zendeskTicketContext: options?.zendeskTicketContext,
     }
 
     this.sessions.set(storedSession.id, managed)
@@ -1555,6 +1562,8 @@ export class SessionManager {
         isHeadless: !AGENT_FLAGS.defaultModesEnabled,
         // System prompt preset for mini agents (focused prompts for quick edits)
         systemPromptPreset: managed.systemPromptPreset,
+        // Zendesk ticket context (for zendesk preset sessions)
+        zendeskContext: managed.zendeskTicketContext,
         // Always pass session object - id is required for plan mode callbacks
         // sdkSessionId is optional and used for conversation resumption
         session: {
@@ -3459,6 +3468,39 @@ To view this task's output:
               turnId: child.turnId,
               parentToolUseId: event.toolUseId,
             }, workspaceId)
+          }
+        }
+
+        // Zendesk PendingAction interception: when a zendesk session produces
+        // a confirmation tool result, parse it and broadcast as a PendingAction event
+        if (managed.zendeskTicketId && formattedResult) {
+          try {
+            const parsed = JSON.parse(formattedResult)
+            if (parsed?.__zendesk_action) {
+              const actionType = parsed.action === 'draft_reply' ? 'send_reply'
+                : parsed.action === 'request_status_change' ? 'update_status'
+                : parsed.action === 'request_escalation' ? 'escalate'
+                : 'other'
+              const pendingAction = {
+                ticketId: managed.zendeskTicketId,
+                action: {
+                  id: `${managed.zendeskTicketId}-${event.toolUseId}`,
+                  type: actionType,
+                  label: parsed.action === 'draft_reply' ? 'Send Reply'
+                    : parsed.action === 'request_status_change' ? `Change Status → ${parsed.requestedStatus}`
+                    : 'Escalate',
+                  description: parsed.action === 'draft_reply'
+                    ? (parsed.body as string).substring(0, 200)
+                    : parsed.reason || parsed.message || '',
+                  payload: parsed,
+                },
+              }
+              // Broadcast to all renderer windows
+              this.windowManager?.broadcastToAll(IPC_CHANNELS.ZENDESK_PENDING_ACTION, pendingAction)
+              sessionLog.info(`[zendesk] PendingAction broadcast for ticket #${managed.zendeskTicketId}: ${parsed.action}`)
+            }
+          } catch {
+            // Not JSON or no __zendesk_action — ignore
           }
         }
 

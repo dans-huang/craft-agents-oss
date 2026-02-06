@@ -486,6 +486,19 @@ const api: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.ZENDESK_TICKET_UPDATE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.ZENDESK_TICKET_UPDATE, handler)
   },
+  createZendeskSession: (data: { ticketId: number; workspaceId: string; ticketContext: any }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_CREATE_SESSION, data),
+  confirmZendeskAction: (data: { ticketId: number; actionId: string; actionPayload: Record<string, unknown> }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_CONFIRM_ACTION, data),
+  cancelZendeskAction: (data: { ticketId: number; actionId: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_CANCEL_ACTION, data),
+  onZendeskPendingAction: (callback: (data: { ticketId: number; action: any }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { ticketId: number; action: any }) => {
+      callback(data)
+    }
+    ipcRenderer.on(IPC_CHANNELS.ZENDESK_PENDING_ACTION, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ZENDESK_PENDING_ACTION, handler)
+  },
 
   // Menu actions (for unified Craft menu)
   menuQuit: () => ipcRenderer.invoke(IPC_CHANNELS.MENU_QUIT),

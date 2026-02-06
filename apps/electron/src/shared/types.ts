@@ -387,8 +387,8 @@ export interface CreateSessionOptions {
   workingDirectory?: string | 'user_default' | 'none'
   /** Model override for the session (e.g., 'haiku', 'sonnet') */
   model?: string
-  /** System prompt preset for the session ('default' | 'mini' or custom string) */
-  systemPromptPreset?: 'default' | 'mini' | string
+  /** System prompt preset for the session ('default' | 'mini' | 'zendesk' or custom string) */
+  systemPromptPreset?: 'default' | 'mini' | 'zendesk' | string
   /** When true, session won't appear in session list (e.g., mini edit sessions) */
   hidden?: boolean
   /** Initial todo state (status) for the session */
@@ -397,6 +397,10 @@ export interface CreateSessionOptions {
   labels?: string[]
   /** Whether the session should be flagged */
   isFlagged?: boolean
+  /** Zendesk ticket ID (for zendesk preset sessions) */
+  zendeskTicketId?: number
+  /** Zendesk ticket context (for building the system prompt) */
+  zendeskTicketContext?: import('@craft-agent/shared/zendesk').TicketContext
 }
 
 // Events sent from main to renderer
@@ -754,6 +758,10 @@ export const IPC_CHANNELS = {
   ZENDESK_STOP_POLLING: 'zendesk:stop-polling',
   ZENDESK_POLL_NOW: 'zendesk:poll-now',
   ZENDESK_TICKET_UPDATE: 'zendesk:ticket-update',  // main → renderer broadcast
+  ZENDESK_CREATE_SESSION: 'zendesk:create-session',
+  ZENDESK_CONFIRM_ACTION: 'zendesk:confirm-action',
+  ZENDESK_CANCEL_ACTION: 'zendesk:cancel-action',
+  ZENDESK_PENDING_ACTION: 'zendesk:pending-action',  // main → renderer broadcast
 
   // Menu actions (renderer → main for window/app control)
   MENU_QUIT: 'menu:quit',
@@ -1050,6 +1058,10 @@ export interface ElectronAPI {
   stopZendeskPolling(): Promise<void>
   pollZendeskNow(): Promise<void>
   onZendeskTicketUpdate(callback: (data: { added: unknown[]; updated: unknown[]; removed: number[] }) => void): () => void
+  createZendeskSession(data: { ticketId: number; workspaceId: string; ticketContext: import('@craft-agent/shared/zendesk').TicketContext }): Promise<Session>
+  confirmZendeskAction(data: { ticketId: number; actionId: string; actionPayload: Record<string, unknown> }): Promise<{ success: boolean; error?: string }>
+  cancelZendeskAction(data: { ticketId: number; actionId: string }): Promise<void>
+  onZendeskPendingAction(callback: (data: { ticketId: number; action: import('./types').ZendeskPendingActionEvent }) => void): () => void
 
   // Menu actions (from renderer to main)
   menuQuit(): Promise<void>
@@ -1377,6 +1389,17 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
 
   // Simple filter key
   return parseChatsKey(key)
+}
+
+/**
+ * Zendesk pending action event (main → renderer)
+ */
+export interface ZendeskPendingActionEvent {
+  id: string
+  type: 'send_reply' | 'update_status' | 'escalate'
+  label: string
+  description: string
+  payload: Record<string, unknown>
 }
 
 declare global {
