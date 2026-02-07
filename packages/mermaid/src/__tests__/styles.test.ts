@@ -13,7 +13,7 @@ import type { DiagramColors } from '../theme.ts'
 
 describe('THEMES', () => {
   it('contains well-known theme palettes', () => {
-    expect(THEMES['zinc-light']).toBeDefined()
+    expect(THEMES['github-light']).toBeDefined()
     expect(THEMES['zinc-dark']).toBeDefined()
     expect(THEMES['tokyo-night']).toBeDefined()
     expect(THEMES['catppuccin-mocha']).toBeDefined()
