@@ -13,14 +13,18 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { filteredTicketsAtom, activeTicketIdAtom } from '@/atoms/tickets'
+import { filteredTicketsAtom, activeTicketIdAtom, pollingStatusAtom } from '@/atoms/tickets'
 import { TicketQueueItem } from './TicketQueueItem'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { RefreshCw } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function TicketQueue() {
   const tickets = useAtomValue(filteredTicketsAtom)
   const activeId = useAtomValue(activeTicketIdAtom)
   const setActiveId = useSetAtom(activeTicketIdAtom)
+  const pollingStatus = useAtomValue(pollingStatusAtom)
+  const isPolling = pollingStatus === 'polling'
 
   return (
     <div className="flex flex-col h-full">
@@ -29,6 +33,15 @@ export function TicketQueue() {
         <span className="text-sm font-semibold text-foreground">
           Tickets ({tickets.length})
         </span>
+        <button
+          onClick={() => {
+            window.electronAPI?.pollZendeskNow?.()
+          }}
+          className="p-1 rounded hover:bg-foreground/5 text-muted-foreground"
+          title="Refresh tickets"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isPolling && 'animate-spin')} />
+        </button>
       </div>
 
       {/* Scrollable ticket list */}

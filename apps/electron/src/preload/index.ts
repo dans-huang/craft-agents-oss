@@ -492,6 +492,20 @@ const api: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_CONFIRM_ACTION, data),
   cancelZendeskAction: (data: { ticketId: number; actionId: string }) =>
     ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_CANCEL_ACTION, data),
+  // JIRA & n8n credential management
+  getZendeskJiraCredentials: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_GET_JIRA_CREDENTIALS),
+  saveZendeskJiraCredentials: (credentials: { baseUrl: string; email: string; apiToken: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_SAVE_JIRA_CREDENTIALS, credentials),
+  testJiraConnection: (credentials: { baseUrl: string; email: string; apiToken: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_TEST_JIRA_CONNECTION, credentials),
+  getZendeskN8nApiKey: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_GET_N8N_API_KEY),
+  saveZendeskN8nApiKey: (apiKey: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_SAVE_N8N_API_KEY, apiKey),
+  testN8nConnection: (apiKey: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ZENDESK_TEST_N8N_CONNECTION, apiKey),
+
   onZendeskPendingAction: (callback: (data: { ticketId: number; action: any }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { ticketId: number; action: any }) => {
       callback(data)

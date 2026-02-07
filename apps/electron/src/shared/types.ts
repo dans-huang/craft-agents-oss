@@ -772,6 +772,8 @@ export const IPC_CHANNELS = {
   ZENDESK_SAVE_JIRA_CREDENTIALS: 'zendesk:save-jira-credentials',
   ZENDESK_GET_N8N_API_KEY: 'zendesk:get-n8n-api-key',
   ZENDESK_SAVE_N8N_API_KEY: 'zendesk:save-n8n-api-key',
+  ZENDESK_TEST_JIRA_CONNECTION: 'zendesk:test-jira-connection',
+  ZENDESK_TEST_N8N_CONNECTION: 'zendesk:test-n8n-connection',
 
   // Menu actions (renderer → main for window/app control)
   MENU_QUIT: 'menu:quit',
@@ -1071,6 +1073,14 @@ export interface ElectronAPI {
   createZendeskSession(data: { ticketId: number; workspaceId: string; ticketContext: import('@craft-agent/shared/zendesk').TicketContext }): Promise<Session>
   confirmZendeskAction(data: { ticketId: number; actionId: string; actionPayload: Record<string, unknown> }): Promise<{ success: boolean; error?: string }>
   cancelZendeskAction(data: { ticketId: number; actionId: string }): Promise<void>
+  // JIRA & n8n credential management
+  getZendeskJiraCredentials(): Promise<{ baseUrl: string; email: string; apiToken: string } | null>
+  saveZendeskJiraCredentials(credentials: { baseUrl: string; email: string; apiToken: string }): Promise<void>
+  testJiraConnection(credentials: { baseUrl: string; email: string; apiToken: string }): Promise<boolean>
+  getZendeskN8nApiKey(): Promise<string | null>
+  saveZendeskN8nApiKey(apiKey: string): Promise<void>
+  testN8nConnection(apiKey: string): Promise<boolean>
+
   onZendeskPendingAction(callback: (data: { ticketId: number; action: import('./types').ZendeskPendingActionEvent }) => void): () => void
 
   // Menu actions (from renderer to main)

@@ -111,11 +111,12 @@ export function useZendeskPolling() {
 
       switch (event.type) {
         case 'text_complete':
-          // AI is still working (intermediate messages)
+          // AI is generating — set status to working
+          setTicketStatus({ ticketId, status: 'working' })
           break
         case 'complete':
-          // AI turn completed — if there are pending actions, status is 'ready'
-          // The pending action events will handle setting 'ready' status
+          // AI turn completed
+          setTicketStatus({ ticketId, status: 'ready' })
           break
         case 'error':
           setTicketStatus({ ticketId, status: 'error', error: event.error })

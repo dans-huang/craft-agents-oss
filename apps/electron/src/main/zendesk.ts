@@ -16,6 +16,8 @@ import {
   getCredentialKey,
 } from '@craft-agent/shared/zendesk'
 import type { ZendeskCredentials } from '@craft-agent/shared/zendesk'
+import { JiraClient } from '@craft-agent/shared/zendesk'
+import { showNotification, isAnyWindowFocused } from './notifications'
 import { IPC_CHANNELS } from '../shared/types'
 import type { TicketContext } from '@craft-agent/shared/zendesk'
 import type { WindowManager } from './window-manager'
@@ -108,6 +110,18 @@ function broadcastTicketUpdate(
   for (const { window } of windowManager.getAllWindows()) {
     if (!window.isDestroyed()) {
       window.webContents.send(IPC_CHANNELS.ZENDESK_TICKET_UPDATE, diff)
+    }
+  }
+
+  // Desktop notification for new tickets (only when app is not focused)
+  if (!isAnyWindowFocused() && diff.added.length > 0) {
+    for (const ticket of diff.added as Array<{ id: number; subject?: string }>) {
+      showNotification(
+        `New ticket #${ticket.id}`,
+        ticket.subject ?? 'New ticket assigned',
+        '_zendesk',
+        '',
+      )
     }
   }
 }
@@ -314,5 +328,35 @@ export function registerZendeskHandlers(windowManager: WindowManager, sessionMan
     mainLog.info('[zendesk] Saving n8n API key')
     await saveN8nApiKey(apiKey)
     mainLog.info('[zendesk] n8n API key saved successfully')
+  })
+
+  // Test JIRA connection with provided credentials
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_TEST_JIRA_CONNECTION, async (_event, creds: { baseUrl: string; email: string; apiToken: string }) => {
+    mainLog.info('[zendesk] Testing JIRA connection for', creds.baseUrl)
+    try {
+      const client = new JiraClient(creds)
+      const success = await client.testConnection()
+      mainLog.info('[zendesk] JIRA connection test result:', success)
+      return success
+    } catch (err) {
+      mainLog.error('[zendesk] JIRA connection test failed:', err)
+      return false
+    }
+  })
+
+  // Test n8n connection with provided API key
+  ipcMain.handle(IPC_CHANNELS.ZENDESK_TEST_N8N_CONNECTION, async (_event, apiKey: string) => {
+    mainLog.info('[zendesk] Testing n8n connection')
+    try {
+      const res = await fetch('https://n8n-support.pg-internal.homes/api/v1/workflows?limit=1', {
+        headers: { 'X-N8N-API-KEY': apiKey },
+      })
+      const success = res.ok
+      mainLog.info('[zendesk] n8n connection test result:', success)
+      return success
+    } catch (err) {
+      mainLog.error('[zendesk] n8n connection test failed:', err)
+      return false
+    }
   })
 }

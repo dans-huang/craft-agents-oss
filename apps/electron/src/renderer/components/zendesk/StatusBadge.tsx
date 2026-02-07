@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TicketProcessingStatus } from '@/types/ticket'
 
@@ -15,7 +16,7 @@ const STATUS_CONFIG: Record<
   { icon: string; color: string; label: string }
 > = {
   pending:     { icon: '\u23F3',     color: 'text-muted-foreground', label: 'Pending' },
-  working:     { icon: '\uD83D\uDD04', color: 'text-info',          label: 'Working' },
+  working:     { icon: '',           color: 'text-info',          label: 'Working' },
   ready:       { icon: '\uD83D\uDFE2', color: 'text-success',       label: 'Ready' },
   needs_input: { icon: '\uD83D\uDFE1', color: 'text-info',          label: 'Needs Input' },
   paused:      { icon: '\u23F8\uFE0F', color: 'text-muted-foreground', label: 'Paused' },
@@ -25,6 +26,16 @@ const STATUS_CONFIG: Record<
 
 export function StatusBadge({ status }: { status: TicketProcessingStatus }) {
   const config = STATUS_CONFIG[status]
+
+  // Animated spinner for 'working' status
+  if (status === 'working') {
+    return (
+      <span data-slot="status-badge" title={config.label}>
+        <Loader2 className="h-3 w-3 animate-spin text-info" />
+      </span>
+    )
+  }
+
   return (
     <span
       data-slot="status-badge"
